@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TBM 기록</title>
+<meta name="theme-color" content="#0A7B55">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="TBM 기록">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<style>
+  html,body{margin:0;height:100%;background:#E9EDEE;overflow:hidden}
+  body{font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif;color:#1C2528}
+  iframe{position:fixed;inset:0;width:100%;height:100%;border:0;background:#E9EDEE}
+  .msg{position:fixed;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;background:#E9EDEE}
+  .msg[hidden]{display:none}
+  .msg img{width:76px;height:76px;border-radius:18px}
+  .msg p{margin:0;font-size:17px;line-height:1.5;color:#58656A}
+  .msg b{color:#1C2528}
+  .msg button{border:0;border-radius:12px;background:#0A7B55;color:#fff;font:inherit;font-weight:800;font-size:17px;min-height:52px;padding:0 28px}
+  .msg button[hidden]{display:none}
+</style>
+</head>
+<body>
+<div class="msg" id="msg" role="status">
+  <img src="icon-192.png" alt="">
+  <p id="txt">TBM 기록을 여는 중이에요</p>
+  <button id="retry" hidden>다시 연결하기</button>
+</div>
+<iframe id="app" title="TBM 기록" allow="camera; clipboard-write"></iframe>
+<script>
+// ▼▼▼ 여기에 Apps Script 웹 앱 주소(/exec 로 끝나는 주소)를 넣으세요 ▼▼▼
+const APP_URL = 'https://script.google.com/macros/s/여기에주소/exec';
+// ▲▲▲ 따옴표는 지우지 마세요 ▲▲▲
+
+const msg = document.getElementById('msg'), txt = document.getElementById('txt'),
+      retry = document.getElementById('retry'), app = document.getElementById('app');
+let loaded = false;
+
+function show(html, canRetry) { txt.innerHTML = html; retry.hidden = !canRetry; msg.hidden = false; }
+function open() {
+  if (APP_URL.includes('여기에주소') || !/^https:\/\/script\.google\.com\/.+\/exec/.test(APP_URL)) {
+    return show('<b>앱 주소가 아직 설정되지 않았어요</b><br>안전관리 담당에게 알려 주세요.', false);
+  }
+  if (!navigator.onLine) return show('<b>인터넷에 연결되어 있지 않아요</b><br>데이터나 와이파이를 켠 뒤 다시 연결해 주세요.', true);
+  show('TBM 기록을 여는 중이에요', false);
+  loaded = false;
+  app.src = APP_URL + (APP_URL.includes('?') ? '&' : '?') + 't=' + Date.now();
+  setTimeout(() => { if (!loaded) show('<b>연결이 늦어지고 있어요</b><br>잠시 후 다시 연결해 주세요.', true); }, 20000);
+}
+app.addEventListener('load', () => { if (app.src) { loaded = true; msg.hidden = true; } });
+retry.addEventListener('click', open);
+window.addEventListener('online', () => { if (!loaded) open(); });
+window.addEventListener('offline', () => show('<b>인터넷 연결이 끊겼어요</b><br>입력 중이던 내용은 연결되면 다시 저장해 주세요.', true));
+open();
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
