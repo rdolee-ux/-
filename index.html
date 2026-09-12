@@ -221,9 +221,9 @@ const salesHazards = p => [
 ];
 const DEPTS = {
   meat: {
-    name:'육가공센터', leader:'박정호', unit:10,
+    name:'육가공센터', leader:'인현석', unit:10,
     target:720, targetLabel:'12시간',
-    roster:[['박정호','반장'],['이미숙',''],['최영길',''],['김순자',''],['정대현',''],['윤미라',''],['강동석','']],
+    roster:[['인현석','팀장'],['모세종',''],['안성진',''],['박동진',''],['최대규',''],['고승민',''],['신성빈',''],['조수현',''],['고진숙',''],['김원겸','']],
     places:['작업장(발골·정형)','포장실','냉장·냉동실','세척실','휴게실·탈의실','하역장'],
     ppe:'짝끼리 장갑·앞치마·장화를 확인했어요',
     hazards:[
@@ -237,18 +237,18 @@ const DEPTS = {
     remarks:['스킨포장기 필름 끼울 때 손이 롤러 가까이 가요','오후 세척 때 바닥이 제일 미끄러워요','칼 갈고 나서 무심코 작업대에 올려둬요','락스 희석할 때 냄새가 확 올라와요','냉동실에 오래 있으면 손이 둔해져요']
   },
   sales1: {
-    name:'영업1부', leader:'서경민', unit:5,
+    name:'영업1부', leader:'윤종렬', unit:5,
     target:360, targetLabel:'6시간',
-    roster:[['서경민','팀장'],['문혜진',''],['조성우',''],['홍수빈','']],
+    roster:[['윤종렬','팀장'],['유범선',''],['장경희',''],['김강민',''],['최성율',''],['윤명섭',''],['서동균',''],['김락웅',''],['장명준',''],['김미자','']],
     places:SALES_PLACES,
     ppe:'안전화·장갑 착용을 서로 확인했어요',
     hazards:salesHazards('a'),
     remarks:['창고 사다리가 아직 흔들려요','아침 입고 때 박스가 비상구 쪽에 쌓여요','식당 릴선이 개수대 옆에 있어요']
   },
   sales2: {
-    name:'영업2부', leader:'한상철', unit:5,
+    name:'영업2부', leader:'유안순', unit:5,
     target:360, targetLabel:'6시간',
-    roster:[['한상철','팀장'],['배은정',''],['임재훈',''],['송유나','']],
+    roster:[['유안순','팀장'],['신순옥',''],['김미자',''],['조성실',''],['진영주',''],['김선옥',''],['김선혜',''],['김숙경',''],['장선희',''],['황만희',''],['지화연',''],['유순옥',''],['유인영',''],['최현','팀장'],['박동심',''],['김희자',''],['장신각',''],['장경임','']],
     places:SALES_PLACES,
     ppe:'안전화·장갑 착용을 서로 확인했어요',
     hazards:salesHazards('b'),
@@ -257,7 +257,10 @@ const DEPTS = {
 };
 // 구글 Apps Script로 배포하면 LIVE(구글 시트 저장), 파일로 열면 예시 데이터로 동작
 const hasGoogle = () => !!(typeof google!=='undefined' && google.script && google.script.run);
-let LIVE = hasGoogle();
+// 파일을 그대로 열었을 때만 예시 데이터로 동작. 인터넷 주소로 열렸다면 반드시 구글 시트에 연결한다.
+const VER = 'v5';   // 화면 오른쪽 위에 표시되는 버전 (배포 확인용)
+const OFFLINE_FILE = location.protocol === 'file:';
+let LIVE = false;
 const LEVELS = {'상':'lv-상','중':'lv-중','하':'lv-하'};
 const DAY = ['일','월','화','수','목','금','토'];
 
@@ -273,17 +276,18 @@ function seed(){
   const days = workdaysBack(8);
   const mh = DEPTS.meat.hazards;
   const durM=[9.5,10,8.5,11,9,10,9.5,10.5];
-  const absM=[[],[],['윤미라'],[],['강동석'],[],[],['김순자']];
+  const mr=DEPTS.meat.roster.map(r=>r[0]);
+  const absM=[[],[],[mr[5]],[],[mr[6]],[],[],[mr[3]]].map(a=>a.filter(Boolean));
   days.forEach((d,i)=>{
     const roster=DEPTS.meat.roster.map(r=>r[0]); const ab=absM[i];
     const st=at(d,7,50); const pool=DEPTS.meat.remarks; const att=roster.filter(n=>!ab.includes(n));
     S.records.push({id:'d'+(++seq),dept:'meat',start:st,end:new Date(st.getTime()+durM[i]*6e4),leader:'박정호',
-      attend:att,absent:ab,unwell:i===3?['최영길']:[],hazards:[mh[i%4].id, mh[(i+2)%6].id],other:'',
+      attend:att,absent:ab,unwell:i===3?[mr[2]].filter(Boolean):[],hazards:[mh[i%4].id, mh[(i+2)%6].id],other:'',
       remarks:i%3===2?[]:[{who:att[(i+1)%att.length],text:pool[i%pool.length]}].concat(i%2?[{who:att[(i+3)%att.length],text:pool[(i+2)%pool.length]}]:[]),
       shared:[],ppe:true,photo:i%2===0});
     [['sales1',i%2===1,8,40],['sales2',i%3!==0,8,30]].forEach(([k,on,hh,mm])=>{
       if(!on) return; const dd=DEPTS[k], sr=dd.roster.map(r=>r[0]), st2=at(d,hh,mm);
-      const ab=(k==='sales2'&&i===4)?['송유나']:[];
+      const ab=(k==='sales2'&&i===4)?[sr[3]].filter(Boolean):[];
       S.records.push({id:'d'+(++seq),dept:k,start:st2,end:new Date(st2.getTime()+(5+(i%3))*6e4),leader:dd.leader,
         attend:sr.filter(n=>!ab.includes(n)),absent:ab,unwell:[],hazards:[dd.hazards[i%3].id],other:'',
         remarks:[{who:sr[(i+1)%sr.length],text:dd.remarks[i%3]}],shared:[],ppe:true,photo:false});
@@ -337,7 +341,7 @@ const I = {
 
 // ---------- 화면: 공통 ----------
 function header(){
-  return `<div class="top"><h1>TBM 기록</h1>${LIVE?'':'<span class="draft">예시 데이터</span>'}</div>
+  return `<div class="top"><h1>TBM 기록</h1><span class="draft">${LIVE?VER:'예시 데이터 '+VER}</span></div>
   <div class="seg" role="group" aria-label="부서 선택">
     ${Object.entries(DEPTS).map(([k,d])=>`<button data-act="dept" data-arg="${k}" aria-pressed="${S.dept===k}">${d.name}</button>`).join('')}
   </div>`;
@@ -614,7 +618,7 @@ const A = {
     S.err=''; S.warned=false; render(); window.scrollTo(0,0); },
   quit(){ S.sheet={type:'quit'}; render(); },
   quitok(){ S.sheet=null; S.flow=null; render(); },
-  reload(){ S.loading=true; S.loadError=''; render(); load(); },
+  reload(){ S.loading=true; S.loadError=''; render(); if(hasGoogle()){ LIVE=true; load(); } else { S.loading=false; S.loadError='아직 연결되지 않았어요. 앱을 완전히 닫았다가 다시 열어 주세요. (연결코드 G1)'; render(); } },
   att(n){ S.flow.attend[n]=!S.flow.attend[n]; if(!S.flow.attend[n]) S.flow.unwell=S.flow.unwell.filter(x=>x!==n); render(); },
   unwell(n){ const u=S.flow.unwell; S.flow.unwell=u.includes(n)?u.filter(x=>x!==n):u.concat(n); render(); },
   hz(id){ const h=S.flow.hazards; S.flow.hazards=h.includes(id)?h.filter(x=>x!==id):h.concat(id); S.err=''; render(); },
@@ -691,11 +695,14 @@ function bindVal(e){ const b=e.target.dataset.bind; if(b&&S.flow){ S.flow[b]=e.t
 document.addEventListener('input',bindVal);
 document.addEventListener('change',bindVal);
 
-// 구글 연결을 최대 5초까지 기다린 뒤, 없으면 예시 데이터로 동작
+// 구글 연결을 기다렸다가 시트를 불러온다
 (function boot(n){
   if(hasGoogle()){ LIVE=true; load(); return; }
-  if(n<50) return setTimeout(()=>boot(n+1),100);
-  LIVE=false; S.loading=false; seed(); render();
+  if(OFFLINE_FILE){ LIVE=false; S.loading=false; seed(); render(); return; }   // 파일로 연 미리보기
+  if(n<100) return setTimeout(()=>boot(n+1),100);
+  S.loading=false;
+  S.loadError='구글 시트에 연결하지 못했어요. Apps Script에서 "새 버전"으로 다시 배포했는지 확인해 주세요. (연결코드 G1)';
+  render();
 })(0);
 render();
 })();
