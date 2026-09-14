@@ -132,6 +132,10 @@ textarea{min-height:88px;resize:vertical}
 .pbtn{border:0;border-radius:10px;min-height:46px;padding:0 12px;font-weight:700;font-size:15px}
 .pbtn.in{background:var(--go-tint);color:var(--go-dark)}
 .pbtn.outb{background:var(--steel-2);color:var(--sub)}
+.pbtn.offb{background:#E7EDF2;color:#5A6B78;box-shadow:inset 0 0 0 2px #C9D6DF}
+.person.off{background:transparent;box-shadow:inset 0 0 0 2px var(--line)}
+.person.off .nm{color:var(--sub)}
+.count small{font-weight:600;color:var(--sub);font-size:14px;margin-left:6px}
 .pbtn.flag{background:var(--steel);color:var(--sub)}
 .pbtn.flag[aria-pressed="true"]{background:var(--warn);color:var(--warn-ink)}
 .count{font-weight:800;margin-bottom:10px}
@@ -258,7 +262,7 @@ const DEPTS = {
 // 구글 Apps Script로 배포하면 LIVE(구글 시트 저장), 파일로 열면 예시 데이터로 동작
 const hasGoogle = () => !!(typeof google!=='undefined' && google.script && google.script.run);
 // 파일을 그대로 열었을 때만 예시 데이터로 동작. 인터넷 주소로 열렸다면 반드시 구글 시트에 연결한다.
-const VER = 'v5';   // 화면 오른쪽 위에 표시되는 버전 (배포 확인용)
+const VER = 'v6';   // 화면 오른쪽 위에 표시되는 버전 (배포 확인용)
 const OFFLINE_FILE = location.protocol === 'file:';
 let LIVE = false;
 const LEVELS = {'상':'lv-상','중':'lv-중','하':'lv-하'};
@@ -282,14 +286,14 @@ function seed(){
     const roster=DEPTS.meat.roster.map(r=>r[0]); const ab=absM[i];
     const st=at(d,7,50); const pool=DEPTS.meat.remarks; const att=roster.filter(n=>!ab.includes(n));
     S.records.push({id:'d'+(++seq),dept:'meat',start:st,end:new Date(st.getTime()+durM[i]*6e4),leader:'박정호',
-      attend:att,absent:ab,unwell:i===3?[mr[2]].filter(Boolean):[],hazards:[mh[i%4].id, mh[(i+2)%6].id],other:'',
+      attend:att,absent:ab,off:[],unwell:i===3?[mr[2]].filter(Boolean):[],hazards:[mh[i%4].id, mh[(i+2)%6].id],other:'',
       remarks:i%3===2?[]:[{who:att[(i+1)%att.length],text:pool[i%pool.length]}].concat(i%2?[{who:att[(i+3)%att.length],text:pool[(i+2)%pool.length]}]:[]),
       shared:[],ppe:true,photo:i%2===0});
     [['sales1',i%2===1,8,40],['sales2',i%3!==0,8,30]].forEach(([k,on,hh,mm])=>{
       if(!on) return; const dd=DEPTS[k], sr=dd.roster.map(r=>r[0]), st2=at(d,hh,mm);
       const ab=(k==='sales2'&&i===4)?[sr[3]].filter(Boolean):[];
       S.records.push({id:'d'+(++seq),dept:k,start:st2,end:new Date(st2.getTime()+(5+(i%3))*6e4),leader:dd.leader,
-        attend:sr.filter(n=>!ab.includes(n)),absent:ab,unwell:[],hazards:[dd.hazards[i%3].id],other:'',
+        attend:sr.filter(n=>!ab.includes(n)),absent:ab,off:[],unwell:[],hazards:[dd.hazards[i%3].id],other:'',
         remarks:[{who:sr[(i+1)%sr.length],text:dd.remarks[i%3]}],shared:[],ppe:true,photo:false});
     });
   });
@@ -366,12 +370,12 @@ function home(){
   const judged=reps.filter(r=>r.repliedAt||repState(r)==='기한 지남');
   const ok=judged.filter(r=>r.repliedAt&&(r.repliedAt-r.createdAt)<=48*36e5).length;
   const rate=judged.length?Math.round(ok/judged.length*100)+'%':'–';
-  const people=d.roster.map(([n])=>({n,m:half.filter(r=>r.attend.includes(n)).reduce((a,r)=>a+mins(r),0),ab:half.filter(r=>r.absent.includes(n)).length}));
+  const people=d.roster.map(([n])=>({n,m:half.filter(r=>r.attend.includes(n)).reduce((a,r)=>a+mins(r),0),ab:half.filter(r=>r.absent.includes(n)).length,off:half.filter(r=>(r.off||[]).includes(n)).length}));
   return `${header()}<main class="main">
     <div class="date">${longDate(now)}</div>
     <div class="status">${today?`오늘 ${hm(today.start)}에 마쳤어요`:'오늘 TBM 전이에요'}</div>
     <button class="go-btn ${today?'again':''}" data-act="start">
-      <span><b>${today?'TBM 한 번 더 기록하기':'TBM 시작하기'}</b><small>약 ${d.unit}분 · 명단 ${d.roster.length}명 · 진행 ${d.leader}</small></span>
+      <span><b>${today?'TBM 한 번 더 기록하기':'TBM 시작하기'}</b><small>약 ${d.unit}분 · 명단 ${d.roster.length}명 · 오늘 근무자가 진행</small></span>
       <span class="run">${I.play}</span>
     </button>
 
@@ -393,7 +397,7 @@ function home(){
 
     <section class="block">
       <button class="linkbtn" data-act="people">${S.showPeople?'개인별 누적 접기':'개인별 누적 교육시간 보기'}</button>
-      ${S.showPeople?`<div class="people">${people.map(p=>`<div class="row"><span>${esc(p.n)}</span><span><b>${fmtMin(p.m)}</b> ${p.ab?`<em>· 불참 ${p.ab}회 차감</em>`:''}</span></div>`).join('')}</div>`:''}
+      ${S.showPeople?`<div class="people">${people.map(p=>`<div class="row"><span>${esc(p.n)}</span><span><b>${fmtMin(p.m)}</b> ${p.off?`<em>· 휴무 ${p.off}회</em>`:''}${p.ab?`<em>· 불참 ${p.ab}회</em>`:''}</span></div>`).join('')}</div>`:''}
     </section>
   </main>${tabs()}`;
 }
@@ -405,7 +409,7 @@ function records(){
     <div class="listhead"><h2>기록 ${recs.length}건</h2>${LIVE?`<a class="ghost" href="${esc(S.sheetUrl)}" target="_blank" rel="noopener">구글 시트 열기</a>`:'<button class="ghost" data-act="csv">엑셀로 내보내기</button>'}</div>
     ${recs.length?recs.map(r=>`<button class="rec" data-act="openrec" data-arg="${r.id}">
       <div class="l1">${shortDate(r.start)}<span>${hm(r.start)}–${hm(r.end)} · ${fmtDur(mins(r))}</span></div>
-      <div class="l2">참석 ${r.attend.length}/${r.attend.length+r.absent.length} · 발언 ${r.remarks.length}건${r.photo?' · 사진':''}</div>
+      <div class="l2">참석 ${r.attend.length}/${r.attend.length+r.absent.length}명${(r.off||[]).length?` · 휴무 ${r.off.length}`:''} · 발언 ${r.remarks.length}건${r.photo?' · 사진':''}</div>
       <div class="chips">${r.hazards.map((_,i)=>{const h=hzAt(r,i);return `<span class="chip"><i class="dot ${LEVELS[h.level]}"></i>${esc(h.name)}</span>`}).join('')}${r.other?`<span class="chip">${esc(r.other)}</span>`:''}</div>
     </button>`).join(''):`<div class="empty">아직 기록이 없어요. 홈에서 TBM을 시작하세요.</div>`}
   </main>${tabs()}`;
@@ -415,8 +419,9 @@ function recSheet(r){
   return `<h3>${shortDate(r.start)} TBM</h3><div class="hint">${d.name} · 진행 ${esc(r.leader)}</div>
   <div class="kv">
     <div><span>시간</span>${hm(r.start)}–${hm(r.end)} (${fmtDur(mins(r))})</div>
-    <div><span>참석 ${r.attend.length}명</span>${esc(r.attend.join(', '))}</div>
+    <div><span>참석 ${r.attend.length}명 / 근무 ${r.attend.length+r.absent.length}명</span>${esc(r.attend.join(', '))}</div>
     ${r.absent.length?`<div><span>불참</span>${esc(r.absent.join(', '))}</div>`:''}
+    ${(r.off||[]).length?`<div><span>휴무 ${r.off.length}명</span>${esc(r.off.join(', '))}</div>`:''}
     ${r.unwell.length?`<div><span>몸 상태 확인 필요</span>${esc(r.unwell.join(', '))}</div>`:''}
     <div><span>오늘의 위험</span>${hzNames(r).map(esc).join(', ')}${r.other?', '+esc(r.other):''}</div>
     <div><span>근로자 발언 ${r.remarks.length}건</span>${r.remarks.length?r.remarks.map(x=>`<b>${esc(x.who)}</b> ${esc(x.text||'(내용 생략)')}`).join('<br>'):'없음'}</div>
@@ -470,21 +475,34 @@ function repSheet(r){
 }
 
 // ---------- TBM 진행 ----------
+// 진행자는 '오늘 참석한 사람' 중에서만 고른다. 팀장이 휴무면 자동으로 다른 근무자로 넘어간다.
+function fixLeader(){ const f=S.flow; if(!f) return; const d=D();
+  const cand=d.roster.map(r=>r[0]).filter(n=>f.att[n]==='in');
+  if(cand.includes(f.leader)) return;
+  const boss=d.roster.find(([n,role])=>role&&f.att[n]==='in');
+  f.leader = boss?boss[0]:(cand[0]||''); }
 const STEPS=[['인원',1],['위험',3],['발언',3],['제보 공유',2],['보호구',1]];
 function flowScreen(){
   const f=S.flow, d=D(), el=Math.floor((Date.now()-f.start)/1000);
   let body='';
   if(f.step===0){
-    const inN=d.roster.filter(([n])=>f.attend[n]).length;
-    body=`<h2>1. 인원·몸 상태</h2><p class="lead">오늘 진행하는 사람을 고르고, 빠진 사람은 "참석"을 눌러 불참으로 바꾸세요. 몸이 안 좋은 사람은 표시하고 작업을 조정합니다.</p>
+    const names=d.roster.map(r=>r[0]);
+    const inN=names.filter(n=>f.att[n]==='in').length;
+    const offN=names.filter(n=>f.att[n]==='off').length;
+    const outN=names.filter(n=>f.att[n]==='out').length;
+    const duty=inN+outN;
+    const cand=names.filter(n=>f.att[n]==='in');
+    body=`<h2>1. 오늘 근무자·몸 상태</h2><p class="lead">오늘 쉬는 사람은 <b>휴무</b>로 바꾸세요. 휴무는 불참으로 잡히지 않습니다. 진행은 오늘 근무하는 사람 중 한 명이 맡습니다.</p>
     <div class="lead-pick"><label for="f-leader">오늘 진행자</label>
-      <select id="f-leader" data-bind="leader">${d.roster.map(([n,role])=>`<option value="${esc(n)}" ${f.leader===n?'selected':''}>${esc(n)}${role?' ('+esc(role)+')':''}</option>`).join('')}</select></div>
-    <div class="count">참석 ${inN} / ${d.roster.length}명</div>
-    ${d.roster.map(([n,role])=>`<div class="person ${f.attend[n]?'':'out'}">
+      <select id="f-leader" data-bind="leader">${cand.length?cand.map(n=>{const role=(d.roster.find(r=>r[0]===n)||[])[1];return `<option value="${esc(n)}" ${f.leader===n?'selected':''}>${esc(n)}${role?' ('+esc(role)+')':''}</option>`}).join(''):`<option value="">참석자를 먼저 고르세요</option>`}</select></div>
+    <div class="count">참석 ${inN} / 근무 ${duty}명<small>휴무 ${offN}명${outN?` · 불참 ${outN}명`:''}</small></div>
+    <p class="note" style="margin:-4px 0 12px">오른쪽 버튼을 누를 때마다 <b>참석 → 휴무 → 불참</b> 순으로 바뀝니다.</p>
+    ${d.roster.map(([n,role])=>{const st=f.att[n]||'in';
+      return `<div class="person ${st==='in'?'':st}">
       <span class="nm">${esc(n)}${role?`<small>${role}</small>`:''}</span>
-      ${f.attend[n]?`<button class="pbtn flag" data-act="unwell" data-arg="${n}" aria-pressed="${f.unwell.includes(n)}">몸 상태</button>`:''}
-      <button class="pbtn ${f.attend[n]?'in':'outb'}" data-act="att" data-arg="${n}">${f.attend[n]?'참석':'불참'}</button>
-    </div>`).join('')}`;
+      ${st==='in'?`<button class="pbtn flag" data-act="unwell" data-arg="${n}" aria-pressed="${f.unwell.includes(n)}">몸 상태</button>`:''}
+      <button class="pbtn ${st==='in'?'in':st==='off'?'offb':'outb'}" data-act="att" data-arg="${n}">${st==='in'?'참석':st==='off'?'휴무':'불참'}</button>
+    </div>`}).join('')}`;
   } else if(f.step===1){
     body=`<h2>2. 오늘의 위험</h2><p class="lead">오늘 작업에서 짚을 위험을 1~2개 고르세요. 고르면 읽어 줄 문구가 나옵니다.</p>
     ${d.hazards.map(h=>{const on=f.hazards.includes(h.id);return `<button class="hz" data-act="hz" data-arg="${h.id}" aria-pressed="${on}">
@@ -495,7 +513,7 @@ function flowScreen(){
     <input id="f-other" type="text" data-bind="other" value="${esc(f.other)}" placeholder="예: 오늘 냉동기 점검 업체 출입">
     ${S.err?`<div class="warnline">${S.err}</div>`:''}`;
   } else if(f.step===2){
-    const att=d.roster.map(r=>r[0]).filter(n=>f.attend[n]);
+    const att=d.roster.map(r=>r[0]).filter(n=>f.att[n]==='in');
     body=`<div class="ask"><small>작업자에게 물어보세요</small><b>오늘 내 작업에서 제일 위험한 순간은 언제인가요?</b></div>
     <h2 style="font-size:19px">3. 근로자 발언</h2><p class="lead">누가 말했는지 누르고, 내용은 한 줄로 적어도 되고 비워도 됩니다.</p>
     <div class="who">${att.map(n=>`<button data-act="who" data-arg="${n}" aria-pressed="${f.who===n}">${esc(n)}</button>`).join('')}</div>
@@ -521,7 +539,7 @@ function flowScreen(){
   const labels=STEPS.map((s,i)=>`<span class="${i===f.step?'now':''}" style="flex:${s[1]}">${s[0]}</span>`).join('');
   const markLeft=Math.min(el/600,1)*100;
   return `<header class="fhead">
-    <div class="r1"><button class="quit" data-act="quit">그만두기</button><span>${d.name} · 진행 ${esc(f.leader||d.leader)}</span></div>
+    <div class="r1"><button class="quit" data-act="quit">그만두기</button><span>${d.name} · 진행 ${esc(f.leader||'미정')}</span></div>
     <div class="clock ${el>600?'over':''}" id="clock"><b>${clock(el)}</b><span>/ 10:00${el>600?' · 10분 넘었어요':''}</span></div>
     <div class="strip" aria-hidden="true">${segs}<i class="mark" id="mark" style="left:calc(${markLeft}% - 1px)"></i></div>
     <div class="slabels">${labels}</div>
@@ -577,7 +595,7 @@ function load(){
       const hs=data.hazards.filter(h=>h.dept===k);
       if(hs.length) DEPTS[k].hazards=hs.map(h=>({id:h.id,name:h.name,level:h.level,say:h.say,aug:h.aug}));
     });
-    S.records=data.records.map(r=>Object.assign({},r,{start:new Date(r.start),end:new Date(r.end)}));
+    S.records=data.records.map(r=>Object.assign({},r,{start:new Date(r.start),end:new Date(r.end),off:r.off||[]}));
     S.reports=data.reports.map(r=>Object.assign({},r,{createdAt:new Date(r.createdAt),repliedAt:r.repliedAt?new Date(r.repliedAt):null}));
     S.sheetUrl=data.sheetUrl; S.loading=false; render();
   }, msg=>{ S.loading=false; S.loadError=msg; render(); });
@@ -613,13 +631,16 @@ const A = {
   dept(k){ S.dept=k; S.showForm=false; render(); },
   tab(k){ S.tab=k; render(); window.scrollTo(0,0); },
   people(){ S.showPeople=!S.showPeople; render(); },
-  start(){ const d=D(); const attend={}; d.roster.forEach(([n])=>attend[n]=true);
-    S.flow={step:0,start:Date.now(),attend,leader:d.leader,unwell:[],hazards:[],other:'',remarks:[],who:'',shared:[],ppe:false,photo:null};
-    S.err=''; S.warned=false; render(); window.scrollTo(0,0); },
+  start(){ const d=D(); const att={}; d.roster.forEach(([n])=>att[n]='in');
+    S.flow={step:0,start:Date.now(),att,leader:d.leader,unwell:[],hazards:[],other:'',remarks:[],who:'',shared:[],ppe:false,photo:null};
+    fixLeader(); S.err=''; S.warned=false; render(); window.scrollTo(0,0); },
   quit(){ S.sheet={type:'quit'}; render(); },
   quitok(){ S.sheet=null; S.flow=null; render(); },
   reload(){ S.loading=true; S.loadError=''; render(); if(hasGoogle()){ LIVE=true; load(); } else { S.loading=false; S.loadError='아직 연결되지 않았어요. 앱을 완전히 닫았다가 다시 열어 주세요. (연결코드 G1)'; render(); } },
-  att(n){ S.flow.attend[n]=!S.flow.attend[n]; if(!S.flow.attend[n]) S.flow.unwell=S.flow.unwell.filter(x=>x!==n); render(); },
+  att(n){ const f=S.flow, nx={in:'off',off:'out',out:'in'};
+    f.att[n]=nx[f.att[n]||'in'];
+    if(f.att[n]!=='in'){ f.unwell=f.unwell.filter(x=>x!==n); f.remarks=f.remarks.filter(r=>r.who!==n); if(f.who===n) f.who=''; }
+    fixLeader(); render(); },
   unwell(n){ const u=S.flow.unwell; S.flow.unwell=u.includes(n)?u.filter(x=>x!==n):u.concat(n); render(); },
   hz(id){ const h=S.flow.hazards; S.flow.hazards=h.includes(id)?h.filter(x=>x!==id):h.concat(id); S.err=''; render(); },
   who(n){ S.flow.who=S.flow.who===n?'':n; render(); },
@@ -630,7 +651,8 @@ const A = {
   delphoto(){ S.flow.photo=null; render(); },
   prev(){ if(S.flow.step>0){ S.flow.step--; S.err=''; render(); window.scrollTo(0,0);} },
   next(){ const f=S.flow, d=D();
-    if(f.step===0 && !d.roster.some(([n])=>f.attend[n])) return toast('참석자가 한 명 이상 있어야 해요');
+    if(f.step===0 && !d.roster.some(([n])=>f.att[n]==='in')) return toast('참석자가 한 명 이상 있어야 해요');
+    if(f.step===0 && !f.leader) return toast('오늘 진행자를 골라 주세요');
     if(f.step===1 && !f.hazards.length && !f.other.trim()){ S.err='위험요인을 하나 이상 고르거나 적어 주세요.'; return render(); }
     if(f.step===2 && !f.remarks.length && !S.warned){ S.warned=true; return render(); }
     f.step++; S.err=''; render(); window.scrollTo(0,0); },
@@ -638,10 +660,10 @@ const A = {
     const names=d.roster.map(r=>r[0]);
     let end=Date.now(); if(!LIVE && end-f.start<60000) end=f.start+60000; // 예시 모드: 최소 1분으로 표시
     const rec={dept:S.dept,start:f.start,end,leader:f.leader||d.leader,
-      attend:names.filter(n=>f.attend[n]),absent:names.filter(n=>!f.attend[n]),unwell:f.unwell.slice(),
+      attend:names.filter(n=>f.att[n]==='in'),absent:names.filter(n=>f.att[n]==='out'),off:names.filter(n=>f.att[n]==='off'),unwell:f.unwell.slice(),
       hazards:f.hazards.slice(),hazardNames:f.hazards.map(id=>hz(id).name),other:f.other.trim(),
       remarks:f.remarks.slice(),shared:f.shared.slice(),ppe:f.ppe,photo:!!f.photo};
-    const finish=saved=>{ saved.start=new Date(saved.start); saved.end=new Date(saved.end);
+    const finish=saved=>{ saved.start=new Date(saved.start); saved.end=new Date(saved.end); if(!saved.off) saved.off=rec.off.slice();
       S.records.push(saved); S.reports.forEach(r=>{ if(saved.shared.includes(r.id)) r.shared=true; });
       S.saving=false; S.flow=null; S.done=saved; render(); window.scrollTo(0,0); };
     if(LIVE){ S.saving=true; render();
@@ -651,10 +673,10 @@ const A = {
   },
   gohome(){ S.done=null; S.tab='home'; render(); },
   csv(){
-    const rows=[['날짜','부서','시작','종료','소요(분)','진행자','참석 인원','참석자','불참자','몸 상태 확인','오늘의 위험','근로자 발언','제보 조치 공유','보호구 점검','사진']];
+    const rows=[['날짜','부서','시작','종료','소요(분)','진행자','근무 인원','참석 인원','참석자','불참자','휴무자','몸 상태 확인','오늘의 위험','근로자 발언','제보 조치 공유','보호구 점검','사진']];
     S.records.slice().sort((a,b)=>a.start-b.start).forEach(r=>rows.push([
       `${r.start.getFullYear()}-${String(r.start.getMonth()+1).padStart(2,'0')}-${String(r.start.getDate()).padStart(2,'0')}`,
-      DEPTS[r.dept].name,hm(r.start),hm(r.end),mins(r).toFixed(1),r.leader,r.attend.length,r.attend.join(' '),r.absent.join(' '),r.unwell.join(' '),
+      DEPTS[r.dept].name,hm(r.start),hm(r.end),mins(r).toFixed(1),r.leader,r.attend.length+r.absent.length,r.attend.length,r.attend.join(' '),r.absent.join(' '),(r.off||[]).join(' '),r.unwell.join(' '),
       hzNames(r).concat(r.other?[r.other]:[]).join(' / '),
       r.remarks.map(x=>`${x.who}: ${x.text}`).join(' / '),
       r.shared.map(id=>(S.reports.find(x=>x.id===id)||{}).text).join(' / '),
